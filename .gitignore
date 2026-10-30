@@ -11,3 +11,5 @@ dist/
 .vercel/
 *.log
 .DS_Store
+.vercel
+.env*
