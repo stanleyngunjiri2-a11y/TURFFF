@@ -1,10 +1,10 @@
+import Link from "next/link";
 import {
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
   CalendarDays,
   Check,
-  ChevronDown,
   Clock3,
   Compass,
   Footprints,
@@ -16,7 +16,6 @@ import {
   SlidersHorizontal,
   Star,
   Users,
-  Wallet,
 } from "lucide-react";
 
 const turfs = [
@@ -94,7 +93,7 @@ const benefits = [
 
 function Brand({ light = false }: { light?: boolean }) {
   return (
-    <a
+    <Link
       href="/"
       aria-label="TURFF home"
       className={`brand ${light ? "brand-light" : ""}`}
@@ -103,7 +102,7 @@ function Brand({ light = false }: { light?: boolean }) {
         <Goal size={24} strokeWidth={2.5} />
       </span>
       <span className="brand-word">turff<span>.</span></span>
-    </a>
+    </Link>
   );
 }
 
@@ -393,7 +392,7 @@ export default function HomePage() {
             <div>
               <strong>Your neighbourhood, your football community.</strong>
               <p>
-                We're building a better way to discover pitches across Kenya.
+                We&apos;re building a better way to discover pitches across Kenya.
                 More local finds, fewer missed kick-offs.
               </p>
             </div>
@@ -412,7 +411,7 @@ export default function HomePage() {
               <span className="text-green">More playing.</span>
             </h2>
             <p className="section-description">
-              Your next football session shouldn't take a dozen phone calls to organise.
+              Your next football session shouldn&apos;t take a dozen phone calls to organise.
             </p>
           </div>
 
@@ -504,7 +503,7 @@ export default function HomePage() {
               <br />
               about the game.
               <br />
-              <span>Let's play.</span>
+              <span>Let&apos;s play.</span>
             </h2>
             <p>
               Find the pitch. Bring the squad. Make it a match day.

@@ -1,0 +1,200 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { SiteShell } from "@/components/site-shell";
+import { createClient } from "@/lib/supabase/client";
+
+type Counts = {
+  profiles: number;
+  owners: number;
+  turfs: number;
+  pendingTurfs: number;
+  bookings: number;
+  pendingBookings: number;
+  pendingApplications: number;
+  activeSubscriptions: number;
+};
+
+const emptyCounts: Counts = {
+  profiles: 0,
+  owners: 0,
+  turfs: 0,
+  pendingTurfs: 0,
+  bookings: 0,
+  pendingBookings: 0,
+  pendingApplications: 0,
+  activeSubscriptions: 0,
+};
+
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [counts, setCounts] = useState<Counts>(emptyCounts);
+
+  const loadDashboard = useCallback(async () => {
+    setError("");
+
+    const supabase = createClient();
+    const { data: authData } = await supabase.auth.getUser();
+
+    if (!authData.user) {
+      router.replace("/login?next=/admin/dashboard");
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", authData.user.id)
+      .single();
+
+    if (profileError || profile?.role !== "superadmin") {
+      router.replace("/turfs");
+      return;
+    }
+
+    const [
+      profilesResult,
+      ownersResult,
+      turfsResult,
+      pendingTurfsResult,
+      bookingsResult,
+      pendingBookingsResult,
+      applicationsResult,
+      subscriptionsResult,
+    ] = await Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "turf_owner"),
+      supabase.from("turfs").select("id", { count: "exact", head: true }),
+      supabase.from("turfs").select("id", { count: "exact", head: true }).eq("review_status", "pending"),
+      supabase.from("bookings").select("id", { count: "exact", head: true }),
+      supabase.from("bookings").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("owner_applications").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "active"),
+    ]);
+
+    const failed = [
+      profilesResult,
+      ownersResult,
+      turfsResult,
+      pendingTurfsResult,
+      bookingsResult,
+      pendingBookingsResult,
+      applicationsResult,
+      subscriptionsResult,
+    ].find((result) => result.error);
+
+    if (failed?.error) {
+      setError(failed.error.message);
+    }
+
+    setCounts({
+      profiles: profilesResult.count ?? 0,
+      owners: ownersResult.count ?? 0,
+      turfs: turfsResult.count ?? 0,
+      pendingTurfs: pendingTurfsResult.count ?? 0,
+      bookings: bookingsResult.count ?? 0,
+      pendingBookings: pendingBookingsResult.count ?? 0,
+      pendingApplications: applicationsResult.count ?? 0,
+      activeSubscriptions: subscriptionsResult.count ?? 0,
+    });
+
+    setLoading(false);
+  }, [router]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadDashboard]);
+
+  const cards = [
+    { label: "Registered accounts", value: counts.profiles },
+    { label: "Approved turf owners", value: counts.owners },
+    { label: "Total turf listings", value: counts.turfs },
+    { label: "Pending turf reviews", value: counts.pendingTurfs },
+    { label: "Owner applications to review", value: counts.pendingApplications },
+    { label: "Total bookings", value: counts.bookings },
+    { label: "Pending booking requests", value: counts.pendingBookings },
+    { label: "Active subscriptions", value: counts.activeSubscriptions },
+  ];
+
+  if (loading) {
+    return (
+      <SiteShell>
+        <div className="mx-auto max-w-7xl px-5 py-16 text-gray-600">
+          Loading administration dashboard...
+        </div>
+      </SiteShell>
+    );
+  }
+
+  return (
+    <SiteShell>
+      <section className="bg-green-950 text-white">
+        <div className="mx-auto max-w-7xl px-5 py-12">
+          <p className="text-sm font-bold uppercase tracking-wider text-green-300">
+            TURFF administration
+          </p>
+          <h1 className="mt-3 text-4xl font-black">Admin dashboard</h1>
+          <p className="mt-3 text-green-100">
+            Monitor accounts, owner applications, turf listings, bookings, and subscriptions.
+          </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-10">
+        {error && (
+          <div role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-900">
+            {error}
+          </div>
+        )}
+
+        <div className="mb-8 flex flex-wrap gap-3">
+          <Link href="/admin/applications" className="inline-flex min-h-12 items-center justify-center rounded-lg bg-green-800 px-5 font-bold text-white hover:bg-green-900">
+            Review owner applications ({counts.pendingApplications})
+          </Link>
+          <button onClick={() => void loadDashboard()} className="min-h-12 rounded-lg border border-gray-300 px-5 font-semibold text-gray-800 hover:bg-gray-50">
+            Refresh dashboard
+          </button>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card) => (
+            <article key={card.label} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <p className="text-sm leading-6 text-gray-600">{card.label}</p>
+              <p className="mt-3 text-3xl font-black text-gray-950">
+                {card.value.toLocaleString("en-KE")}
+              </p>
+            </article>
+          ))}
+        </div>
+
+        <section className="mt-10 rounded-xl border border-gray-200 p-6">
+          <h2 className="text-xl font-black text-gray-950">Administration links</h2>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Link href="/admin/applications" className="rounded-lg border border-gray-200 p-4 font-semibold text-gray-800 hover:border-green-700 hover:bg-green-50">
+              Owner application review
+            </Link>
+            <Link href="/turfs" className="rounded-lg border border-gray-200 p-4 font-semibold text-gray-800 hover:border-green-700 hover:bg-green-50">
+              View public turf directory
+            </Link>
+            <Link href="/pricing" className="rounded-lg border border-gray-200 p-4 font-semibold text-gray-800 hover:border-green-700 hover:bg-green-50">
+              Review owner pricing page
+            </Link>
+          </div>
+          <p className="mt-5 text-sm leading-6 text-gray-600">
+            Turf approval and subscription verification must be implemented
+            through protected database operations. Do not grant subscription
+            access by allowing clients to update subscription records directly.
+          </p>
+        </section>
+      </section>
+    </SiteShell>
+  );
+}
