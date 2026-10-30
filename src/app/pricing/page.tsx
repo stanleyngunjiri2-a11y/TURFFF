@@ -12,25 +12,32 @@ const plans = [
   {
     name: "Standard",
     price: "999",
-    description: "For turf owners who need their facility listed and accessible to footballers.",
+    description:
+      "For turf owners who want an affordable online presence and the essential tools to manage their facility.",
     features: [
       "Individual turf listing",
       "Public turf discovery",
+      "Standard placement in search results",
       "Booking request access while subscribed",
       "Owner subscription dashboard",
+      "Booking management",
       "Manual M-Pesa payment verification",
+      "Standard customer support",
     ],
   },
   {
     name: "Professional",
     price: "1,999",
-    description: "For turf owners who want the Professional subscription offering.",
+    description:
+      "For ambitious turf owners who want greater visibility, stronger promotion and better insights into their facility.",
     features: [
-      "Individual turf listing",
-      "Public turf discovery",
-      "Booking request access while subscribed",
-      "Owner subscription dashboard",
-      "Manual M-Pesa payment verification",
+      "Everything included in Standard",
+      "Priority placement in search results",
+      "Professional featured badge",
+      "Enhanced turf profile and additional photos",
+      "Promotional offers and discounts",
+      "Booking and performance analytics",
+      "Priority customer support",
     ],
   },
 ];
@@ -74,13 +81,13 @@ export default function PricingPage() {
               key={plan.name}
               className={`rounded-xl border p-7 ${
                 index === 1
-                  ? "border-green-700 shadow-lg"
+                  ? "border-green-700 shadow-lg ring-1 ring-green-700"
                   : "border-gray-200"
               }`}
             >
               {index === 1 && (
                 <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-green-900">
-                  Professional plan
+                  Best for growth
                 </span>
               )}
 
@@ -106,7 +113,7 @@ export default function PricingPage() {
                     className="flex gap-3 text-sm leading-6 text-gray-700"
                   >
                     <span className="font-black text-green-700">✓</span>
-                    {feature}
+                    <span>{feature}</span>
                   </li>
                 ))}
               </ul>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { SiteShell } from "@/components/site-shell";
 import { createClient } from "@/lib/supabase/client";
+import { getLoginDestination } from "@/lib/auth/get-login-destination";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +38,23 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace("/turfs");
+      const { data: authData, error: userError } =
+        await supabase.auth.getUser();
+
+      if (userError || !authData.user) {
+        setError("Your login succeeded, but we could not verify your account. Please try again.");
+        return;
+      }
+
+      const requestedNext = new URLSearchParams(window.location.search).get("next");
+
+      const destination = await getLoginDestination(
+        supabase,
+        authData.user.id,
+        requestedNext
+      );
+
+      router.replace(destination);
       router.refresh();
     } catch {
       setError(
@@ -59,7 +76,11 @@ export default function LoginPage() {
         await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: `${window.location.origin}/auth/callback?next=/turfs`,
+            redirectTo: `${window.location.origin}/auth/callback?next=${
+              new URLSearchParams(window.location.search).get("next") === "/owner/apply"
+                ? "/owner/apply"
+                : "/turfs"
+            }`,
           },
         });
 
