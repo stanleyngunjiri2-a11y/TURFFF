@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SiteShell } from "@/components/site-shell";
 import { createClient } from "@/lib/supabase/client";
@@ -99,15 +99,16 @@ export default function OwnerDashboardPage() {
 
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const urls = selectedImages.map((file) => URL.createObjectURL(file));
-    setImagePreviews(urls);
+    const previewUrls = previewUrlsRef.current;
 
     return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls.clear();
     };
-  }, [selectedImages]);
+  }, []);
 
   function handleImageSelection(files: FileList | null) {
     if (!files) return;
@@ -134,7 +135,12 @@ export default function OwnerDashboardPage() {
       }
     }
 
+    const previews = incoming.map((file) => URL.createObjectURL(file));
+
+    previews.forEach((url) => previewUrlsRef.current.add(url));
+
     setSelectedImages((previous) => [...previous, ...incoming]);
+    setImagePreviews((previous) => [...previous, ...previews]);
   }
 
   const loadDashboard = useCallback(async () => {
@@ -483,7 +489,12 @@ export default function OwnerDashboardPage() {
       setPrice("");
       setCapacity("10");
       setFacilities("");
+
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.clear();
+
       setSelectedImages([]);
+      setImagePreviews([]);
 
       await loadDashboard();
     } catch {
@@ -1125,11 +1136,22 @@ export default function OwnerDashboardPage() {
                         <button
                           type="button"
                           disabled={saving}
-                          onClick={() =>
+                          onClick={() => {
+                            const previewToRemove = imagePreviews[index];
+
+                            if (previewToRemove) {
+                              URL.revokeObjectURL(previewToRemove);
+                              previewUrlsRef.current.delete(previewToRemove);
+                            }
+
                             setSelectedImages((previous) =>
                               previous.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
+                            );
+
+                            setImagePreviews((previous) =>
+                              previous.filter((_, itemIndex) => itemIndex !== index)
+                            );
+                          }}
                           className="rounded-md bg-red-50 px-2 py-1 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
                         >
                           Remove
