@@ -5,7 +5,8 @@ import { SiteShell } from "@/components/site-shell";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Find Football Turfs | TURFF",
+  alternates: { canonical: "/turfs" },
+  title: "Find Football Turfs in Kenya",
   description:
     "Discover approved football turfs in Kenya, compare hourly prices, and find a pitch for your next game.",
 };
