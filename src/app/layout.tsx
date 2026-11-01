@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://turfff.vercel.app"),
   title: "TURFF | Find Your Game",
   description:
     "Discover football turfs near you, compare prices, and request your next football booking with TURFF.",
