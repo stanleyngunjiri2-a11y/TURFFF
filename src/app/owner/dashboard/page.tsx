@@ -97,6 +97,46 @@ export default function OwnerDashboardPage() {
   const [openingTime, setOpeningTime] = useState("08:00");
   const [closingTime, setClosingTime] = useState("22:00");
 
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = selectedImages.map((file) => URL.createObjectURL(file));
+    setImagePreviews(urls);
+
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [selectedImages]);
+
+  function handleImageSelection(files: FileList | null) {
+    if (!files) return;
+
+    setError("");
+
+    const incoming = Array.from(files);
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (selectedImages.length + incoming.length > 6) {
+      setError("You can upload a maximum of 6 photos per turf.");
+      return;
+    }
+
+    for (const file of incoming) {
+      if (!allowedTypes.includes(file.type)) {
+        setError("Only JPG, PNG and WebP images are supported.");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Each photo must be 5 MB or smaller.");
+        return;
+      }
+    }
+
+    setSelectedImages((previous) => [...previous, ...incoming]);
+  }
+
   const loadDashboard = useCallback(async () => {
     const supabase = createClient();
 
@@ -330,32 +370,109 @@ export default function OwnerDashboardPage() {
         return;
       }
 
-      const { error: insertError } = await supabase.from("turfs").insert({
-        owner_id: authData.user.id,
-        name: name.trim(),
-        description: description.trim(),
-        county: county.trim(),
-        town: town.trim(),
-        address: address.trim(),
-        price_per_hour: numericPrice,
-        capacity: numericCapacity,
-        facilities: facilities
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
-        opening_time: openingTime,
-        closing_time: closingTime,
-        review_status: "pending",
-        is_active: false,
-      });
+      const { data: createdTurf, error: insertError } = await supabase
+        .from("turfs")
+        .insert({
+          owner_id: authData.user.id,
+          name: name.trim(),
+          description: description.trim(),
+          county: county.trim(),
+          town: town.trim(),
+          address: address.trim(),
+          price_per_hour: numericPrice,
+          capacity: numericCapacity,
+          facilities: facilities
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+          opening_time: openingTime,
+          closing_time: closingTime,
+          review_status: "pending",
+          is_active: false,
+        })
+        .select("id")
+        .single();
 
-      if (insertError) {
-        setError(insertError.message);
+      if (insertError || !createdTurf) {
+        setError(insertError?.message || "Could not create the turf listing.");
         return;
       }
 
+      // Upload photos after the turf exists so every image has a turf ID.
+      if (selectedImages.length > 0) {
+        const uploadedPaths: string[] = [];
+        const imageRows: {
+          turf_id: string;
+          image_url: string;
+          alt_text: string;
+          position: number;
+        }[] = [];
+
+        try {
+          for (let index = 0; index < selectedImages.length; index++) {
+            const file = selectedImages[index];
+            const extension = file.type === "image/jpeg"
+              ? "jpg"
+              : file.type === "image/png"
+                ? "png"
+                : "webp";
+
+            const filePath =
+              `${authData.user.id}/${createdTurf.id}/` +
+              `${Date.now()}-${index}.${extension}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("turf-images")
+              .upload(filePath, file, {
+                contentType: file.type,
+                upsert: false,
+              });
+
+            if (uploadError) {
+              throw new Error(uploadError.message);
+            }
+
+            uploadedPaths.push(filePath);
+
+            const { data: publicUrlData } = supabase.storage
+              .from("turf-images")
+              .getPublicUrl(filePath);
+
+            imageRows.push({
+              turf_id: createdTurf.id,
+              image_url: publicUrlData.publicUrl,
+              alt_text: `${name.trim()} football pitch`,
+              position: index,
+            });
+          }
+
+          const { error: imageInsertError } = await supabase
+            .from("turf_images")
+            .insert(imageRows);
+
+          if (imageInsertError) {
+            throw new Error(imageInsertError.message);
+          }
+        } catch (photoError) {
+          if (uploadedPaths.length > 0) {
+            await supabase.storage
+              .from("turf-images")
+              .remove(uploadedPaths);
+          }
+
+          setError(
+            `Your turf listing was created, but its photos could not be saved. ` +
+            `${photoError instanceof Error ? photoError.message : "Please try again."}`
+          );
+
+          await loadDashboard();
+          return;
+        }
+      }
+
       setNotice(
-        "Turf submitted successfully. The administrator must approve it before its five-day free trial begins."
+        `Turf submitted successfully${selectedImages.length ? ` with ${selectedImages.length} photo(s)` : ""}. ` +
+        "The administrator must approve it before its five-day free trial begins."
       );
 
       setName("");
@@ -366,6 +483,7 @@ export default function OwnerDashboardPage() {
       setPrice("");
       setCapacity("10");
       setFacilities("");
+      setSelectedImages([]);
 
       await loadDashboard();
     } catch {
@@ -958,6 +1076,69 @@ export default function OwnerDashboardPage() {
                 required
                 className={inputClass}
               />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="turfImages"
+                className="block font-semibold text-gray-900"
+              >
+                Turf photos
+              </label>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Upload up to 6 photos. JPG, PNG or WebP. Maximum 5 MB per photo.
+                Your first photo will be the main cover image.
+              </p>
+
+              <input
+                id="turfImages"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                disabled={saving}
+                onChange={(event) => {
+                  handleImageSelection(event.target.files);
+                  event.target.value = "";
+                }}
+                className="mt-3 block w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 file:mr-4 file:rounded-lg file:border-0 file:bg-green-800 file:px-4 file:py-2 file:font-semibold file:text-white"
+              />
+
+              {imagePreviews.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  {imagePreviews.map((preview, index) => (
+                    <div
+                      key={`${selectedImages[index].name}-${index}`}
+                      className="relative overflow-hidden rounded-xl border border-gray-200"
+                    >
+                      <img
+                        src={preview}
+                        alt={`Turf photo ${index + 1}`}
+                        className="h-36 w-full object-cover"
+                      />
+
+                      <div className="flex items-center justify-between gap-2 p-2">
+                        <span className="text-xs font-semibold text-gray-700">
+                          {index === 0 ? "Main cover" : `Photo ${index + 1}`}
+                        </span>
+
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() =>
+                            setSelectedImages((previous) =>
+                              previous.filter((_, itemIndex) => itemIndex !== index)
+                            )
+                          }
+                          className="rounded-md bg-red-50 px-2 py-1 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="sm:col-span-2">
