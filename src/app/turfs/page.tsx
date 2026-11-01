@@ -284,10 +284,10 @@ export default async function TurfsPage({
                     )}
 
                     <Link
-                      href={`/register`}
+                      href={`/turfs/${turf.id}`}
                       className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-green-800 px-4 py-3 text-sm font-bold text-white transition hover:bg-green-900"
                     >
-                      Create an account to get started
+                      View details & book
                     </Link>
                   </div>
                 </article>
