@@ -23,64 +23,29 @@ const navigation = [
   {
     title: "OVERVIEW",
     items: [
-      {
-        label: "Dashboard",
-        href: "/admin/dashboard",
-        icon: LayoutDashboard,
-      },
+      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     ],
   },
   {
     title: "PLATFORM MANAGEMENT",
     items: [
-      {
-        label: "Users",
-        href: "/admin/users",
-        icon: Users,
-      },
-      {
-        label: "Owner applications",
-        href: "/admin/applications",
-        icon: ClipboardList,
-      },
-      {
-        label: "Turf listings",
-        href: "/admin/turfs",
-        icon: MapPin,
-      },
-      {
-        label: "Bookings",
-        href: "/admin/bookings",
-        icon: CalendarDays,
-        disabled: true,
-      },
+      { label: "Users", href: "/admin/users", icon: Users },
+      { label: "Owner applications", href: "/admin/applications", icon: ClipboardList },
+      { label: "Turf listings", href: "/admin/turfs", icon: MapPin },
+      { label: "Bookings", href: "/admin/bookings", icon: CalendarDays },
     ],
   },
   {
     title: "BUSINESS",
     items: [
-      {
-        label: "Subscriptions",
-        href: "/admin/subscriptions",
-        icon: CreditCard,
-      },
-      {
-        label: "Analytics",
-        href: "/admin/analytics",
-        icon: BarChart3,
-        disabled: true,
-      },
+      { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
+      { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
     ],
   },
   {
     title: "CONFIGURATION",
     items: [
-      {
-        label: "Settings",
-        href: "/admin/settings",
-        icon: Settings,
-        disabled: true,
-      },
+      { label: "Settings", href: "/admin/settings", icon: Settings },
     ],
   },
 ];
@@ -119,10 +84,7 @@ export function AdminShell({
     return (
       <div className="flex h-full flex-col">
         <div className="flex h-20 items-center border-b border-gray-800 px-6">
-          <Link
-            href="/admin/dashboard"
-            className="text-2xl font-black tracking-tight text-white"
-          >
+          <Link href="/admin/dashboard" className="text-2xl font-black tracking-tight text-white">
             TURFF<span className="text-green-400">.</span>
             <span className="ml-2 text-xs font-semibold tracking-wider text-gray-400">
               ADMIN
@@ -144,24 +106,6 @@ export function AdminShell({
                     pathname === item.href ||
                     (item.href !== "/admin/dashboard" &&
                       pathname.startsWith(`${item.href}/`));
-
-                  if (item.disabled) {
-                    return (
-                      <div
-                        key={item.href}
-                        title="This section is not available yet."
-                        className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-3 text-sm font-medium text-gray-600"
-                      >
-                        <span className="flex items-center gap-3">
-                          <Icon size={18} />
-                          {item.label}
-                        </span>
-                        <span className="rounded bg-gray-800 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                          Soon
-                        </span>
-                      </div>
-                    );
-                  }
 
                   return (
                     <Link
@@ -262,11 +206,8 @@ export function AdminShell({
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-bold text-gray-900">Superadmin</p>
-              <p className="max-w-56 truncate text-xs text-gray-500">
-                {email}
-              </p>
+              <p className="max-w-56 truncate text-xs text-gray-500">{email}</p>
             </div>
-
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 font-black text-green-800">
               A
             </div>
