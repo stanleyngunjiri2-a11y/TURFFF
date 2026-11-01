@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 import {
   ArrowDownRight,
   ArrowRight,
@@ -14,51 +15,8 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  Star,
   Users,
 } from "lucide-react";
-
-const turfs = [
-  {
-    id: "01",
-    name: "The Green Arena",
-    location: "Kilimani, Nairobi",
-    price: "3,000",
-    rating: "4.9",
-    reviews: "124",
-    size: "5-a-side",
-    image:
-      "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1100&q=85",
-    tag: "POPULAR",
-    tagType: "popular",
-  },
-  {
-    id: "02",
-    name: "Urban Kickz",
-    location: "Westlands, Nairobi",
-    price: "2,500",
-    rating: "4.8",
-    reviews: "86",
-    size: "5-a-side",
-    image:
-      "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=1100&q=85",
-    tag: "GREAT VALUE",
-    tagType: "value",
-  },
-  {
-    id: "03",
-    name: "Champions Pitch",
-    location: "Ruiru, Kiambu",
-    price: "2,000",
-    rating: "4.7",
-    reviews: "53",
-    size: "7-a-side",
-    image:
-      "https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=1100&q=85",
-    tag: "NEW FIND",
-    tagType: "new",
-  },
-];
 
 const steps = [
   {
@@ -115,7 +73,36 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+
+  const { data: turfData, error: turfLoadError } = await supabase
+    .from("turfs")
+    .select(`
+      id,
+      name,
+      description,
+      county,
+      town,
+      address,
+      price_per_hour,
+      capacity,
+      facilities,
+      opening_time,
+      closing_time,
+      turf_images (
+        id,
+        image_url,
+        alt_text,
+        position
+      )
+    `)
+    .eq("review_status", "approved")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  const turfs = turfData ?? [];
+
   return (
     <main>
       <header className="site-header">
@@ -179,21 +166,10 @@ export default function HomePage() {
             </div>
 
             <div className="hero-proof">
-              <div className="proof-avatars" aria-hidden="true">
-                <span>J</span>
-                <span>M</span>
-                <span>K</span>
-                <span>+</span>
-              </div>
               <div className="proof-copy">
-                <div className="proof-stars">
-                  <Star size={13} fill="currentColor" />
-                  <Star size={13} fill="currentColor" />
-                  <Star size={13} fill="currentColor" />
-                  <Star size={13} fill="currentColor" />
-                  <Star size={13} fill="currentColor" />
-                </div>
-                <span>Your next favourite pitch is out there.</span>
+                <span>
+                  Public turf listings are reviewed before appearing on TURFF.
+                </span>
               </div>
             </div>
           </div>
@@ -221,11 +197,11 @@ export default function HomePage() {
 
             <div className="floating-card floating-card-rating">
               <div className="floating-rating-icon">
-                <Star size={18} fill="currentColor" />
+                <ShieldCheck size={18} />
               </div>
               <div>
-                <strong>4.9/5</strong>
-                <span>Community rated</span>
+                <strong>Reviewed listings</strong>
+                <span>Approved before going public</span>
               </div>
             </div>
 
@@ -328,58 +304,116 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="turf-grid">
-            {turfs.map((turf) => (
-              <article className="turf-card" key={turf.id}>
-                <Link
-                  className="turf-image"
-                  href={`/turfs/${turf.id}`}
-                  style={{ backgroundImage: `url("${turf.image}")` }}
-                  aria-label={`Explore ${turf.name}`}
-                >
-                  <span className={`turf-tag turf-tag-${turf.tagType}`}>
-                    {turf.tag}
-                  </span>
-                  <span className="turf-image-arrow">
-                    <ArrowUpRight size={19} />
-                  </span>
+          {turfLoadError ? (
+            <div className="discovery-note" role="alert">
+              <span className="discovery-note-icon">
+                <Compass size={20} />
+              </span>
+              <div>
+                <strong>Turfs are temporarily unavailable.</strong>
+                <p>
+                  We could not load turf listings right now. Please try again
+                  later or visit the full turf directory.
+                </p>
+              </div>
+            </div>
+          ) : turfs.length === 0 ? (
+            <div className="discovery-note">
+              <span className="discovery-note-icon">
+                <Compass size={20} />
+              </span>
+              <div>
+                <strong>No approved turfs are listed yet.</strong>
+                <p>
+                  There are currently no active, approved turf listings.
+                  Check back soon, or let a turf owner know they can submit
+                  their pitch for review.
+                </p>
+                <Link href="/register?role=owner" className="text-link">
+                  List your turf <ArrowRight size={17} />
                 </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="turf-grid">
+              {turfs.slice(0, 3).map((turf) => {
+                const images = [...(turf.turf_images ?? [])].sort(
+                  (a, b) => (a.position ?? 0) - (b.position ?? 0)
+                );
+                const image = images[0];
+                const location = [
+                  turf.town,
+                  turf.county,
+                ].filter(Boolean).join(", ");
 
-                <div className="turf-card-body">
-                  <div className="turf-name-row">
-                    <h3>{turf.name}</h3>
-                    <span className="turf-rating">
-                      <Star size={14} fill="currentColor" />
-                      {turf.rating}
-                      <span className="review-count">({turf.reviews})</span>
-                    </span>
-                  </div>
+                const facilities = (turf.facilities ?? []).filter(Boolean);
+                const price = new Intl.NumberFormat("en-KE", {
+                  maximumFractionDigits: 0,
+                }).format(Number(turf.price_per_hour));
 
-                  <div className="turf-location">
-                    <MapPin size={15} />
-                    {turf.location}
-                  </div>
+                return (
+                  <article className="turf-card" key={turf.id}>
+                    <Link
+                      className="turf-image"
+                      href={`/turfs/${turf.id}`}
+                      style={
+                        image?.image_url
+                          ? {
+                              backgroundImage: `url("${image.image_url}")`,
+                            }
+                          : undefined
+                      }
+                      aria-label={`Explore ${turf.name}`}
+                    >
+                      {!image?.image_url && (
+                        <span className="turf-photo-fallback">
+                          <Compass size={32} />
+                          <span>Photo not available</span>
+                        </span>
+                      )}
 
-                  <div className="turf-card-bottom">
-                    <div className="turf-meta">
-                      <span className="turf-size">{turf.size}</span>
-                      <span className="turf-divider-dot" />
-                      <span>Artificial grass</span>
+                      <span className="turf-image-arrow">
+                        <ArrowUpRight size={19} />
+                      </span>
+                    </Link>
+
+                    <div className="turf-card-body">
+                      <div className="turf-name-row">
+                        <h3>{turf.name}</h3>
+                      </div>
+
+                      <div className="turf-location">
+                        <MapPin size={15} />
+                        {location || turf.address || "Location not provided"}
+                      </div>
+
+                      <div className="turf-card-bottom">
+                        <div className="turf-meta">
+                          {facilities.length > 0 ? (
+                            <span>{facilities[0]}</span>
+                          ) : (
+                            <span>Football turf</span>
+                          )}
+                        </div>
+
+                        <div className="turf-price">
+                          <strong>KSh {price}</strong>
+                          <span>/ hour</span>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/turfs/${turf.id}`}
+                        className="turf-details-link"
+                      >
+                        View turf details <ArrowRight size={16} />
+                      </Link>
                     </div>
-
-                    <div className="turf-price">
-                      <strong>KSh {turf.price}</strong>
-                      <span>/ hour</span>
-                    </div>
-                  </div>
-
-                  <Link href={`/turfs/${turf.id}`} className="turf-details-link">
-                    View turf details <ArrowRight size={16} />
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mobile-explore">
             <Link href="/turfs" className="button button-outline">
