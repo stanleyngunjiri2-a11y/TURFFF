@@ -310,9 +310,9 @@ export default function HomePage() {
               </p>
             </div>
 
-            <a href="/turfs" className="text-link desktop-view-all">
+            <Link href="/turfs" className="text-link desktop-view-all">
               Explore all turfs <ArrowRight size={17} />
-            </a>
+            </Link>
           </div>
 
           <div className="filter-row">
@@ -321,17 +321,17 @@ export default function HomePage() {
               <span>Find your kind of game</span>
             </div>
             <div className="filter-chips">
-              <a className="filter-chip filter-chip-active" href="/turfs">All turfs</a>
-              <a className="filter-chip" href="/turfs?size=5-a-side">5-a-side</a>
-              <a className="filter-chip" href="/turfs?size=7-a-side">7-a-side</a>
-              <a className="filter-chip" href="/turfs?sort=price">Budget friendly</a>
+              <Link className="filter-chip filter-chip-active" href="/turfs">All turfs</Link>
+              <Link className="filter-chip" href="/turfs?size=5-a-side">5-a-side</Link>
+              <Link className="filter-chip" href="/turfs?size=7-a-side">7-a-side</Link>
+              <Link className="filter-chip" href="/turfs?sort=price">Budget friendly</Link>
             </div>
           </div>
 
           <div className="turf-grid">
             {turfs.map((turf) => (
               <article className="turf-card" key={turf.id}>
-                <a
+                <Link
                   className="turf-image"
                   href={`/turfs/${turf.id}`}
                   style={{ backgroundImage: `url("${turf.image}")` }}
@@ -343,7 +343,7 @@ export default function HomePage() {
                   <span className="turf-image-arrow">
                     <ArrowUpRight size={19} />
                   </span>
-                </a>
+                </Link>
 
                 <div className="turf-card-body">
                   <div className="turf-name-row">
@@ -373,18 +373,18 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  <a href={`/turfs/${turf.id}`} className="turf-details-link">
+                  <Link href={`/turfs/${turf.id}`} className="turf-details-link">
                     View turf details <ArrowRight size={16} />
-                  </a>
+                  </Link>
                 </div>
               </article>
             ))}
           </div>
 
           <div className="mobile-explore">
-            <a href="/turfs" className="button button-outline">
+            <Link href="/turfs" className="button button-outline">
               Explore all turfs <ArrowRight size={17} />
-            </a>
+            </Link>
           </div>
 
           <div className="discovery-note">
@@ -536,9 +536,9 @@ export default function HomePage() {
 
             <div className="footer-column">
               <h3>Discover</h3>
-              <a href="/turfs">Find a turf</a>
-              <a href="/turfs?size=5-a-side">5-a-side pitches</a>
-              <a href="/turfs?size=7-a-side">7-a-side pitches</a>
+              <Link href="/turfs">Find a turf</Link>
+              <Link href="/turfs?size=5-a-side">5-a-side pitches</Link>
+              <Link href="/turfs?size=7-a-side">7-a-side pitches</Link>
             </div>
 
             <div className="footer-column">

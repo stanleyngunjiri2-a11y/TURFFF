@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SiteShell } from "@/components/site-shell";
 import { createClient } from "@/lib/supabase/client";
 
 type Counts = {
@@ -126,16 +125,17 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <SiteShell>
+      
         <div className="mx-auto max-w-7xl px-5 py-16 text-gray-600">
           Loading administration dashboard...
         </div>
-      </SiteShell>
+      
     );
   }
 
   return (
-    <SiteShell>
+    <>
+    
       <section className="bg-green-950 text-white">
         <div className="mx-auto max-w-7xl px-5 py-12">
           <p className="text-sm font-bold uppercase tracking-wider text-green-300">
@@ -207,6 +207,7 @@ export default function AdminDashboardPage() {
           </p>
         </section>
       </section>
-    </SiteShell>
+    
+    </>
   );
 }

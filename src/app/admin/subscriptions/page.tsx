@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SiteShell } from "@/components/site-shell";
 import { createClient } from "@/lib/supabase/client";
 
 type Subscription = {
@@ -168,7 +167,8 @@ export default function AdminSubscriptionsPage() {
   );
 
   return (
-    <SiteShell>
+    <>
+    
       <section className="bg-green-950 text-white">
         <div className="mx-auto max-w-7xl px-5 py-12">
           <p className="font-bold uppercase tracking-widest text-green-300">
@@ -394,6 +394,7 @@ export default function AdminSubscriptionsPage() {
           )}
         </section>
       </section>
-    </SiteShell>
+    
+    </>
   );
 }
