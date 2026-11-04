@@ -17,6 +17,30 @@ type Turf = {
   owner_name?: string;
 };
 
+type DeleteTurfResult = {
+  success: boolean;
+  turf_name: string;
+  image_urls: string[];
+};
+
+function getTurfImagePath(imageUrl: string): string | null {
+  try {
+    const url = new URL(imageUrl);
+    const marker = "/storage/v1/object/public/turf-images/";
+    const markerIndex = url.pathname.indexOf(marker);
+
+    if (markerIndex === -1) {
+      return null;
+    }
+
+    return decodeURIComponent(
+      url.pathname.slice(markerIndex + marker.length)
+    );
+  } catch {
+    return null;
+  }
+}
+
 export default function AdminTurfsPage() {
   const router = useRouter();
 
@@ -76,11 +100,15 @@ export default function AdminTurfsPage() {
       }
 
       const ownerNames = new Map(
-        (profiles ?? []).map((profile) => [profile.id, profile.full_name])
+        (profiles ?? []).map((profile) => [
+          profile.id,
+          profile.full_name,
+        ])
       );
 
       for (const turf of rows) {
-        turf.owner_name = ownerNames.get(turf.owner_id) ?? "TURFF owner";
+        turf.owner_name =
+          ownerNames.get(turf.owner_id) ?? "TURFF owner";
       }
     }
 
@@ -161,6 +189,105 @@ export default function AdminTurfsPage() {
     }
   }
 
+  async function deleteTurf(turf: Turf) {
+    setError("");
+    setNotice("");
+
+    const confirmed = window.confirm(
+      `PERMANENTLY DELETE "${turf.name}"?\n\n` +
+        "This will remove the turf listing and its database image records. " +
+        "Its stored photos will also be deleted.\n\n" +
+        "A turf with booking or subscription/payment history cannot be deleted. " +
+        "That history is protected.\n\n" +
+        "This action cannot be undone. Continue?"
+    );
+
+    if (!confirmed) return;
+
+    setBusyId(turf.id);
+
+    try {
+      const supabase = createClient();
+
+      const { data: authData } = await supabase.auth.getUser();
+
+      if (!authData.user) {
+        router.replace("/login?next=/admin/turfs");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileError || profile?.role !== "superadmin") {
+        setError("Superadmin access is required.");
+        return;
+      }
+
+      const { data, error: deleteError } = await supabase.rpc(
+        "delete_turf_listing",
+        {
+          p_turf_id: turf.id,
+        }
+      );
+
+      if (deleteError) {
+        setError(
+          deleteError.message ||
+            "The turf listing could not be deleted."
+        );
+        return;
+      }
+
+      const result = data as DeleteTurfResult | null;
+
+      if (!result?.success) {
+        setError("The database did not confirm the turf deletion.");
+        return;
+      }
+
+      const imagePaths = (result.image_urls ?? [])
+        .map(getTurfImagePath)
+        .filter((path): path is string => Boolean(path));
+
+      let storageWarning = "";
+
+      if (imagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from("turf-images")
+          .remove(imagePaths);
+
+        if (storageError) {
+          storageWarning =
+            " The listing was deleted, but some stored photos could not " +
+            "be removed. Please check Supabase Storage.";
+        }
+      }
+
+      await loadTurfs();
+
+      setNotice(
+        `${result.turf_name || turf.name} was permanently deleted.` +
+          storageWarning
+      );
+
+      if (storageWarning) {
+        setError(
+          "Storage cleanup needs attention. The database listing has already been deleted."
+        );
+      }
+    } catch {
+      setError(
+        "An unexpected error occurred while deleting the turf listing."
+      );
+    } finally {
+      setBusyId("");
+    }
+  }
+
   const pendingTurfs = turfs.filter(
     (turf) => turf.review_status === "pending"
   );
@@ -171,23 +298,24 @@ export default function AdminTurfsPage() {
 
   if (loading) {
     return (
-      
-        <div className="mx-auto max-w-7xl px-5 py-16 text-gray-600">
-          Loading turf listings...
-        </div>
-      
+      <div className="mx-auto max-w-7xl px-5 py-16 text-gray-600">
+        Loading turf listings...
+      </div>
     );
   }
 
   return (
     <>
-    
       <section className="bg-green-950 text-white">
         <div className="mx-auto max-w-7xl px-5 py-12">
           <p className="text-sm font-bold uppercase tracking-wider text-green-300">
             Administration
           </p>
-          <h1 className="mt-3 text-4xl font-black">Turf listings</h1>
+
+          <h1 className="mt-3 text-4xl font-black">
+            Turf listings
+          </h1>
+
           <p className="mt-3 max-w-2xl text-green-100">
             Review submitted turf listings. Approved turfs automatically
             receive a five-day free trial.
@@ -205,6 +333,7 @@ export default function AdminTurfsPage() {
           </a>
 
           <button
+            type="button"
             onClick={() => void loadTurfs()}
             className="min-h-11 rounded-lg bg-green-800 px-4 font-bold text-white hover:bg-green-900"
           >
@@ -306,14 +435,15 @@ export default function AdminTurfsPage() {
                       </p>
                     </div>
 
-                    <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-bold capitalize text-yellow-900">
+                    <span className="rounded-lg bg-yellow-100 px-3 py-1 text-sm font-bold capitalize text-yellow-900">
                       {turf.review_status}
                     </span>
                   </div>
 
                   <div className="mt-5 border-t border-gray-100 pt-5">
                     <p className="text-lg font-bold text-gray-950">
-                      KSh {Number(turf.price_per_hour).toLocaleString("en-KE")}{" "}
+                      KSh{" "}
+                      {Number(turf.price_per_hour).toLocaleString("en-KE")}{" "}
                       <span className="text-sm font-medium text-gray-500">
                         per hour
                       </span>
@@ -343,6 +473,15 @@ export default function AdminTurfsPage() {
                     >
                       Reject listing
                     </button>
+
+                    <button
+                      type="button"
+                      disabled={busyId === turf.id}
+                      onClick={() => void deleteTurf(turf)}
+                      className="min-h-11 rounded-lg border border-red-700 px-5 font-bold text-red-800 hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {busyId === turf.id ? "Processing..." : "Delete listing"}
+                    </button>
                   </div>
                 </article>
               ))}
@@ -361,7 +500,7 @@ export default function AdminTurfsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-              <table className="w-full min-w-[700px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
                     <th className="px-5 py-4 font-bold">Turf</th>
@@ -370,6 +509,7 @@ export default function AdminTurfsPage() {
                     <th className="px-5 py-4 font-bold">Price/hour</th>
                     <th className="px-5 py-4 font-bold">Review status</th>
                     <th className="px-5 py-4 font-bold">Listing status</th>
+                    <th className="px-5 py-4 font-bold">Action</th>
                   </tr>
                 </thead>
 
@@ -379,19 +519,23 @@ export default function AdminTurfsPage() {
                       <td className="px-5 py-4 font-bold text-gray-950">
                         {turf.name}
                       </td>
+
                       <td className="px-5 py-4 text-gray-700">
                         {turf.owner_name ?? "TURFF owner"}
                       </td>
+
                       <td className="px-5 py-4 text-gray-700">
                         {turf.town}, {turf.county}
                       </td>
+
                       <td className="px-5 py-4 text-gray-700">
                         KSh{" "}
                         {Number(turf.price_per_hour).toLocaleString("en-KE")}
                       </td>
+
                       <td className="px-5 py-4">
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                          className={`rounded-lg px-3 py-1 text-xs font-bold capitalize ${
                             turf.review_status === "approved"
                               ? "bg-green-100 text-green-800"
                               : "bg-red-100 text-red-800"
@@ -400,6 +544,7 @@ export default function AdminTurfsPage() {
                           {turf.review_status}
                         </span>
                       </td>
+
                       <td className="px-5 py-4">
                         <span
                           className={`font-semibold ${
@@ -411,6 +556,17 @@ export default function AdminTurfsPage() {
                           {turf.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
+
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          disabled={busyId === turf.id}
+                          onClick={() => void deleteTurf(turf)}
+                          className="min-h-10 rounded-lg border border-red-300 px-4 font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {busyId === turf.id ? "Deleting..." : "Delete"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -419,7 +575,6 @@ export default function AdminTurfsPage() {
           )}
         </div>
       </section>
-    
     </>
   );
 }
