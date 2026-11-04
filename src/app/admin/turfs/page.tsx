@@ -189,6 +189,70 @@ export default function AdminTurfsPage() {
     }
   }
 
+  async function setTurfActive(turf: Turf, activate: boolean) {
+    setError("");
+    setNotice("");
+
+    const action = activate ? "reactivate" : "deactivate";
+
+    const confirmed = window.confirm(
+      activate
+        ? `Reactivate "${turf.name}"? An active subscription is required.`
+        : `Deactivate "${turf.name}"? It will no longer be available for new bookings. Existing booking and payment history will be preserved.`
+    );
+
+    if (!confirmed) return;
+
+    setBusyId(turf.id);
+
+    try {
+      const supabase = createClient();
+
+      const { data: authData } = await supabase.auth.getUser();
+
+      if (!authData.user) {
+        router.replace("/login?next=/admin/turfs");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileError || profile?.role !== "superadmin") {
+        setError("Superadmin access is required.");
+        return;
+      }
+
+      const { error: updateError } = await supabase.rpc(
+        "set_turf_listing_active",
+        {
+          p_turf_id: turf.id,
+          p_is_active: activate,
+        }
+      );
+
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      setNotice(
+        activate
+          ? `${turf.name} has been reactivated.`
+          : `${turf.name} has been deactivated. Its booking and payment history will be preserved.`
+      );
+
+      await loadTurfs();
+    } catch {
+      setError(`The turf could not be ${action}d. Please try again.`);
+    } finally {
+      setBusyId("");
+    }
+  }
+
   async function deleteTurf(turf: Turf) {
     setError("");
     setNotice("");
@@ -558,14 +622,35 @@ export default function AdminTurfsPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <button
-                          type="button"
-                          disabled={busyId === turf.id}
-                          onClick={() => void deleteTurf(turf)}
-                          className="min-h-10 rounded-lg border border-red-300 px-4 font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {busyId === turf.id ? "Deleting..." : "Delete"}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={busyId === turf.id}
+                            onClick={() =>
+                              void setTurfActive(turf, !turf.is_active)
+                            }
+                            className={`min-h-10 rounded-lg border px-4 font-bold disabled:cursor-not-allowed disabled:opacity-50 ${
+                              turf.is_active
+                                ? "border-yellow-400 text-yellow-800 hover:bg-yellow-50"
+                                : "border-green-400 text-green-800 hover:bg-green-50"
+                            }`}
+                          >
+                            {busyId === turf.id
+                              ? "Processing..."
+                              : turf.is_active
+                                ? "Deactivate"
+                                : "Reactivate"}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={busyId === turf.id}
+                            onClick={() => void deleteTurf(turf)}
+                            className="min-h-10 rounded-lg border border-red-300 px-4 font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {busyId === turf.id ? "Processing..." : "Delete"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
